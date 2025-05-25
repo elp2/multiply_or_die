@@ -22,6 +22,23 @@ local function updatePlayerScore(player, score)
 	playerScores[player] = score
 	local labelText = tostring(score)  -- Show only the score, not the name
 	updatePlayerLabelEvent:FireAllClients(player, labelText)
+	
+	-- Scale player based on score (200 score = 2x size, minimum 1x size)
+	local sizeMultiplier = math.max(1, 1 + (score / 200))
+	
+	-- Apply scaling to player character if it exists
+	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+		local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+		
+		-- Scale the character proportionally
+		humanoid.BodyDepthScale.Value = sizeMultiplier
+		humanoid.BodyHeightScale.Value = sizeMultiplier
+		humanoid.BodyWidthScale.Value = sizeMultiplier
+		humanoid.HeadScale.Value = sizeMultiplier
+		
+		print("Scaled", player.Name, "to", sizeMultiplier .. "x size (score:", score .. ")")
+	end
+	
 	print("Updated", player.Name, "score to", score)
 end
 
@@ -101,6 +118,15 @@ Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function(character)
         local root = character:WaitForChild("HumanoidRootPart")
         local humanoid = character:WaitForChild("Humanoid")
+        
+        -- Apply current score-based scaling to new character
+        if playerScores[player] then
+        	local sizeMultiplier = math.max(1, 1 + (playerScores[player] / 200))
+        	humanoid.BodyDepthScale.Value = sizeMultiplier
+        	humanoid.BodyHeightScale.Value = sizeMultiplier
+        	humanoid.BodyWidthScale.Value = sizeMultiplier
+        	humanoid.HeadScale.Value = sizeMultiplier
+        end
         
         -- Defer to next frame to avoid race condition with default spawner
         task.defer(function()
