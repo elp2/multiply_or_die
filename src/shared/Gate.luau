@@ -1,8 +1,34 @@
 local Gate = {}
 Gate.__index = Gate
 
-function Gate.new(position, text)
+-- Math operations for gates
+local MATH_OPERATIONS = {
+	{text = "8+", operation = "add", value = 8},
+	{text = "4+", operation = "add", value = 4},
+	{text = "1+", operation = "add", value = 1},
+	{text = "2x", operation = "multiply", value = 2},
+	{text = "4x", operation = "multiply", value = 4},
+	{text = "2÷", operation = "divide", value = 2},
+	{text = "3÷", operation = "divide", value = 3},
+	{text = "2-", operation = "subtract", value = 2},
+	{text = "5-", operation = "subtract", value = 5},
+}
+
+function Gate.new(position, text, mathOperation)
 	local self = setmetatable({}, Gate)
+	
+	-- If no math operation provided, use the text as-is or generate a random one
+	if mathOperation then
+		self.MathOperation = mathOperation
+		self.Text = mathOperation.text
+	elseif text and text ~= "" then
+		self.Text = text
+		self.MathOperation = nil
+	else
+		-- Generate random math operation
+		self.MathOperation = MATH_OPERATIONS[math.random(1, #MATH_OPERATIONS)]
+		self.Text = self.MathOperation.text
+	end
 	
 	-- Create main gate model to hold all parts
 	self.Model = Instance.new("Model")
@@ -33,7 +59,7 @@ function Gate.new(position, text)
 	self.Plane.BrickColor = BrickColor.new("Bright red")
 	self.Plane.Transparency = 0.7  -- Semi-transparent
 	self.Plane.Anchored = false
-	self.Plane.CanCollide = false  -- Don't want it to block movement
+	self.Plane.CanCollide = false
 	self.Plane.Name = "Plane"
 	self.Plane.Parent = self.Model
 	
@@ -59,16 +85,34 @@ function Gate.new(position, text)
 	self.TextLabel.Size = UDim2.new(1, 0, 1, 0)  -- Fill the entire surface
 	self.TextLabel.Position = UDim2.new(0, 0, 0, 0)
 	self.TextLabel.BackgroundTransparency = 1  -- Transparent background
-	self.TextLabel.Text = text or "ABC"  -- Default text or provided text
+	self.TextLabel.Text = self.Text
 	self.TextLabel.TextColor3 = Color3.new(1, 1, 1)  -- White text
 	self.TextLabel.TextScaled = true  -- Scale text to fit
 	self.TextLabel.Font = Enum.Font.SourceSansBold
 	self.TextLabel.Parent = surfaceGui
 	
-	-- Store reference to the text for easy updates
-	self.Text = text or "ABC"
-	
 	return self
+end
+
+function Gate:ApplyMathOperation(currentScore)
+	if not self.MathOperation then
+		return currentScore -- No math operation, return unchanged
+	end
+	
+	local operation = self.MathOperation.operation
+	local value = self.MathOperation.value
+	
+	if operation == "add" then
+		return currentScore + value
+	elseif operation == "subtract" then
+		return math.max(0, currentScore - value) -- Don't go below 0
+	elseif operation == "multiply" then
+		return currentScore * value
+	elseif operation == "divide" then
+		return math.floor(currentScore / value)
+	end
+	
+	return currentScore
 end
 
 function Gate:SetText(newText)

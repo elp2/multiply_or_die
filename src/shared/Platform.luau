@@ -48,9 +48,8 @@ function Platform.new(zPos, divided, platformNumber)
 		self.Wall.CanCollide = false
 	end
 
-	-- Create gates
-	self.GateLeft = Gate.new(Vector3.new(-7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos), tostring(platformNumber) .. "L")
-	self.GateRight = Gate.new(Vector3.new(7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos), tostring(platformNumber) .. "R")
+	self.GateLeft = Gate.new(Vector3.new(-7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos))
+	self.GateRight = Gate.new(Vector3.new(7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos))
 	
 	self.GateLeft:SetParent(self.Part)
 	self.GateRight:SetParent(self.Part)
