@@ -1,4 +1,6 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Gate = require(ReplicatedStorage.Shared.Gate)
 
 local PLATFORM_DIM = 30
 local PLATFORM_SIZE = Vector3.new(PLATFORM_DIM, 1, PLATFORM_DIM)
@@ -45,6 +47,34 @@ local function createHoveringPlatform(zPos, divided)
 		wall.CanCollide = false
 	end
 
+	-- Always create two gates per platform
+	local gateLeft = Gate.new(Vector3.new(-7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos), tostring(platformCount) .. "L")
+	local gateRight = Gate.new(Vector3.new(7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos), tostring(platformCount) .. "R")
+	
+	gateLeft:SetParent(platform)
+	gateRight:SetParent(platform)
+	
+	-- Hide gates by default
+	gateLeft:Hide()
+	gateRight:Hide()
+	
+	-- Show gates on every 3rd platform (for testing)
+	if platformCount % 3 == 0 then
+		gateLeft:Show()
+		gateRight:Show()
+	end
+	
+	-- Weld both gates to the platform
+	local gateLeftWeld = Instance.new("WeldConstraint")
+	gateLeftWeld.Part0 = platform
+	gateLeftWeld.Part1 = gateLeft.LeftBar
+	gateLeftWeld.Parent = platform
+	
+	local gateRightWeld = Instance.new("WeldConstraint")
+	gateRightWeld.Part0 = platform
+	gateRightWeld.Part1 = gateRight.LeftBar
+	gateRightWeld.Parent = platform
+
 	-- Let physics settle it at PLATFORM_HEIGHT
 	local att = Instance.new("Attachment", platform)
 	local align = Instance.new("AlignPosition")
@@ -69,11 +99,16 @@ local function createHoveringPlatform(zPos, divided)
 		-- Wait a bit for it to drop, then destroy
 		task.delay(3, function()
 			platform:Destroy()
+			if gateLeft then
+				gateLeft:Destroy()
+			end
+			if gateRight then
+				gateRight:Destroy()
+			end
 		end)
 	end)
 end
 
-createHoveringPlatform(platformCount * PLATFORM_DIM, false)
 
 -- Spawner loop
 task.spawn(function()
