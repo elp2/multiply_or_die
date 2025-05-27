@@ -111,6 +111,39 @@ end
 -- Create the main lane
 mainLane = Lane.new(onGateTouch, updatePlayerScore)
 
+-- Track which players are assigned to which lanes
+local playerLanes = {}
+
+-- Function to get or create a lane for a player
+local function getLaneForPlayer(player)
+	-- For now, just return the main lane for all players
+	-- In the future, this could create separate lanes per player
+	return mainLane
+end
+
+-- Function to handle player spawning/respawning
+local function handlePlayerSpawn(player, character)
+	local lane = getLaneForPlayer(player)
+	playerLanes[player] = lane
+	
+	-- Reset the lane and spawn the player
+	lane:Reset()
+	lane:SpawnPlayer(player, character)
+end
+
+-- Function to handle player falling (grass collision)
+local function handlePlayerFell(player)
+	local lane = playerLanes[player]
+	if lane and player.Character then
+		print("Player", player.Name, "fell off, respawning...")
+		-- Kill the player to trigger respawn
+		local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Health = 0
+		end
+	end
+end
+
 -- Single grass collision detection for all players
 RunService.Heartbeat:Connect(function()
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -121,20 +154,28 @@ RunService.Heartbeat:Connect(function()
 			if humanoid and rootPart and humanoid.Health > 0 then
 				local position = rootPart.Position
 				if position.Y < 10 then
-					print("Player", player.Name, "fell off and hit grass, resetting health to 0")
-					humanoid.Health = 0
+					handlePlayerFell(player)
 				end
 			end
 		end
 	end
 end)
 
--- When a player joins, restart the lane with that player
+-- When a player joins, set up their character handling
 Players.PlayerAdded:Connect(function(player)
-	mainLane:RestartWithPlayer(player)
+	-- Start the main lane if it's not running
+	if not mainLane.isRunning then
+		mainLane:Start()
+	end
+	
+	-- Handle character spawning (initial and respawns)
+	player.CharacterAdded:Connect(function(character)
+		handlePlayerSpawn(player, character)
+	end)
 end)
 
--- Clean up player scores when they leave
+-- Clean up player scores and lane assignments when they leave
 Players.PlayerRemoving:Connect(function(player)
 	playerScores[player] = nil
+	playerLanes[player] = nil
 end)

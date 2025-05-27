@@ -63,27 +63,21 @@ function Lane:Start()
 	end)
 end
 
-function Lane:RestartWithPlayer(player)
-	-- Set up player character spawning (this will handle both initial spawn and respawns)
-	player.CharacterAdded:Connect(function(character)
-		-- Reset the lane every time the player spawns (including respawns)
-		self:resetLane()
-		
-		-- Initialize player score
-		self.onPlayerScoreUpdate(player, 10)
-		
-		-- Handle player spawning and rotation
-		local root = character:WaitForChild("HumanoidRootPart")
-		-- Defer to next frame to avoid race condition with default spawner
-		task.defer(function()
-			root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
-		end)
+function Lane:SpawnPlayer(player, character)
+	-- Initialize player score
+	self.onPlayerScoreUpdate(player, 10)
+	
+	-- Handle player spawning and rotation
+	local root = character:WaitForChild("HumanoidRootPart")
+	-- Defer to next frame to avoid race condition with default spawner
+	task.defer(function()
+		root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
 	end)
 	
-	self:Start()
+	print("Spawned player", player.Name, "on lane")
 end
 
-function Lane:resetLane()
+function Lane:Reset()
 	self:Stop()
 	
 	-- Reset platform count and clear platforms
