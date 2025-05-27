@@ -24,7 +24,7 @@ local function updatePlayerScore(player, score)
 	updatePlayerLabelEvent:FireAllClients(player, labelText)
 	
 	-- Scale player based on score (200 score = 2x size, minimum 1x size)
-	local sizeMultiplier = math.max(1, 1 + (score / 200))
+	local sizeMultiplier = math.min(4.0, math.max(1, 1 + (score / 200)))
 	
 	-- Apply scaling to player character if it exists
 	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
@@ -112,25 +112,14 @@ end)
 
 -- When a player spawns, drop them onto platform and initialize their score
 Players.PlayerAdded:Connect(function(player)
-	-- Initialize player score to 10
-	updatePlayerScore(player, 10)
 	
-	player.CharacterAdded:Connect(function(character)
+	player.CharacterAdded:Connect(function(character)        
+		updatePlayerScore(player, 10)
+        
         local root = character:WaitForChild("HumanoidRootPart")
-        local humanoid = character:WaitForChild("Humanoid")
-        
-        -- Apply current score-based scaling to new character
-        if playerScores[player] then
-        	local sizeMultiplier = math.max(1, 1 + (playerScores[player] / 200))
-        	humanoid.BodyDepthScale.Value = sizeMultiplier
-        	humanoid.BodyHeightScale.Value = sizeMultiplier
-        	humanoid.BodyWidthScale.Value = sizeMultiplier
-        	humanoid.HeadScale.Value = sizeMultiplier
-        end
-        
-        -- Defer to next frame to avoid race condition with default spawner
+		-- Defer to next frame to avoid race condition with default spawner
         task.defer(function()
-            root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4)
+            root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
         end)
 	end)
 end)
