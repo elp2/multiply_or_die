@@ -1,7 +1,56 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Terrain = workspace.Terrain
 
 local Platform = require(ReplicatedStorage.Shared.Platform)
+
+-- Remove the default baseplate if it exists
+local baseplate = workspace:FindFirstChild("Baseplate")
+if baseplate then
+	baseplate:Destroy()
+end
+
+-- Create infinite grass terrain
+local function createGrassTerrain(centerX, centerZ)
+	local region = Region3.new(
+		Vector3.new(centerX - 256, -50, centerZ - 256),
+		Vector3.new(centerX + 256, -30, centerZ + 256)
+	)
+	local material = Enum.Material.Grass
+	local shape = Enum.PartType.Block
+	
+	Terrain:FillRegion(region, 4, material)
+end
+
+-- Create initial grass terrain area
+createGrassTerrain(0, 0)
+
+-- Track player positions to expand terrain as needed
+local expandedAreas = {}
+local function ensureTerrainAtPosition(x, z)
+	-- Round to terrain chunk boundaries (512x512 chunks)
+	local chunkX = math.floor(x / 512) * 512
+	local chunkZ = math.floor(z / 512) * 512
+	local chunkKey = chunkX .. "," .. chunkZ
+	
+	if not expandedAreas[chunkKey] then
+		expandedAreas[chunkKey] = true
+		createGrassTerrain(chunkX, chunkZ)
+	end
+end
+
+-- Monitor all players and expand terrain as they move
+task.spawn(function()
+	while true do
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				local pos = player.Character.HumanoidRootPart.Position
+				ensureTerrainAtPosition(pos.X, pos.Z)
+			end
+		end
+		task.wait(1) -- Check every second
+	end
+end)
 
 -- Create RemoteEvent for updating player labels
 local updatePlayerLabelEvent = Instance.new("RemoteEvent")
