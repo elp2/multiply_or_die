@@ -38,7 +38,7 @@ function Lane:Start()
 		while self.isRunning do
 			local platform = Platform.new(
 				self.platformCount * PLATFORM_DIM, 
-				self.platformCount % 2 == 0, 
+				self.platformCount % 2 == 0 and self.platformCount > 0,
 				self.platformCount
 			)
 			
