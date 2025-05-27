@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Terrain = workspace.Terrain
 
 local Lane = require(ReplicatedStorage.Shared.Lane)
@@ -62,10 +63,6 @@ local updateCameraEvent = Instance.new("RemoteEvent")
 updateCameraEvent.Name = "UpdateCameraDistance"
 updateCameraEvent.Parent = ReplicatedStorage
 
-local PLATFORM_DIM = 30
-local PLATFORM_HEIGHT = 50
-local PLATFORM_FALL = 50
-local MAX_PLAYER_SIZE = 10.0
 
 local playerScores = {}  -- Track player scores
 local mainLane
@@ -76,7 +73,8 @@ local function updatePlayerScore(player, score)
 	local labelText = tostring(score)  -- Show only the score, not the name
 	updatePlayerLabelEvent:FireAllClients(player, labelText)
 	
-	-- Scale player based on score (200 score = 2x size, minimum 1x size)
+	-- Scale player based on score.
+	local MAX_PLAYER_SIZE = 10.0
 	local sizeMultiplier = math.min(MAX_PLAYER_SIZE, math.max(1, 1 + (score / 200)))
 	
 	-- Apply scaling to player character if it exists
@@ -88,8 +86,6 @@ local function updatePlayerScore(player, score)
 		humanoid.BodyHeightScale.Value = sizeMultiplier
 		humanoid.BodyWidthScale.Value = sizeMultiplier
 		humanoid.HeadScale.Value = sizeMultiplier
-		
-		print("Scaled", player.Name, "to", sizeMultiplier .. "x size (score:", score .. ")")
 	end
 	
 	-- Send camera distance update to the specific player
@@ -114,6 +110,24 @@ end
 
 -- Create the main lane
 mainLane = Lane.new(onGateTouch, updatePlayerScore)
+
+-- Single grass collision detection for all players
+RunService.Heartbeat:Connect(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character then
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+			
+			if humanoid and rootPart and humanoid.Health > 0 then
+				local position = rootPart.Position
+				if position.Y < 10 then
+					print("Player", player.Name, "fell off and hit grass, resetting health to 0")
+					humanoid.Health = 0
+				end
+			end
+		end
+	end
+end)
 
 -- When a player joins, restart the lane with that player
 Players.PlayerAdded:Connect(function(player)

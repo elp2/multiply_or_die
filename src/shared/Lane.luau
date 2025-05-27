@@ -78,9 +78,6 @@ function Lane:RestartWithPlayer(player)
 		task.defer(function()
 			root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
 		end)
-		
-		-- Set up grass collision detection for this character
-		self:setupGrassCollision(character)
 	end)
 	
 	self:Start()
@@ -160,35 +157,7 @@ function Lane:handleGateTouch(hit, gate)
 	gate:Hide()
 end
 
-function Lane:setupGrassCollision(character)
-	local humanoid = character:WaitForChild("Humanoid")
-	local rootPart = character:WaitForChild("HumanoidRootPart")
-	
-	-- Create a connection to monitor the player's position
-	local positionConnection
-	positionConnection = game:GetService("RunService").Heartbeat:Connect(function()
-		-- Check if character still exists
-		if not character.Parent or not rootPart.Parent then
-			positionConnection:Disconnect()
-			return
-		end
-		
-		-- If player is below a certain height, they've likely hit the grass
-		local position = rootPart.Position
-		if position.Y < 10 and humanoid.Health > 0 then
-			print("Player fell off and hit grass, resetting health to 0")
-			humanoid.Health = 0
-			positionConnection:Disconnect()
-		end
-	end)
-	
-	-- Clean up connection when character is removed
-	character.AncestryChanged:Connect(function()
-		if not character.Parent then
-			positionConnection:Disconnect()
-		end
-	end)
-end
+
 
 -- Cleanup method for when lane is no longer needed
 function Lane:Destroy()
