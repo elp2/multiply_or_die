@@ -1,16 +1,13 @@
 local Platform = require(script.Parent.Platform)
+local Constants = require(script.Parent.Constants)
 
 local Lane = {}
 Lane.__index = Lane
 
-local PLATFORM_DIM = 30
-local PLATFORM_HEIGHT = 50
-local PLATFORM_FALL = 50
-local SPAWN_INTERVAL = 2
-
-function Lane.new(onGateTouch, onPlayerScoreUpdate)
+function Lane.new(xPosition, onGateTouch, onPlayerScoreUpdate)
 	local self = setmetatable({}, Lane)
 	
+	self.xPosition = xPosition or 0
 	self.platformCount = 0
 	self.activePlatforms = {}
 	self.gateCooldowns = {}
@@ -37,9 +34,10 @@ function Lane:Start()
 	self.spawnerTask = task.spawn(function()
 		while self.isRunning do
 			local platform = Platform.new(
-				self.platformCount * PLATFORM_DIM, 
+				self.platformCount * Constants.PLATFORM_DIM, 
 				self.platformCount % 2 == 0 and self.platformCount > 0,
-				self.platformCount
+				self.platformCount,
+				self.xPosition
 			)
 			
 			-- Show gates on every platform
@@ -58,23 +56,23 @@ function Lane:Start()
 			end
 			
 			self.platformCount = self.platformCount + 1
-			task.wait(SPAWN_INTERVAL)
+			task.wait(Constants.SPAWN_INTERVAL)
 		end
 	end)
 end
 
 function Lane:SpawnPlayer(player, character)
 	-- Initialize player score
-	self.onPlayerScoreUpdate(player, 10)
+	self.onPlayerScoreUpdate(player, Constants.INITIAL_PLAYER_SCORE)
 	
 	-- Handle player spawning and rotation
 	local root = character:WaitForChild("HumanoidRootPart")
 	-- Defer to next frame to avoid race condition with default spawner
 	task.defer(function()
-		root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
+		root.CFrame = CFrame.new(self.xPosition, Constants.PLATFORM_HEIGHT + Constants.PLATFORM_FALL * 2, -Constants.PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
 	end)
 	
-	print("Spawned player", player.Name, "on lane")
+	print("Spawned player", player.Name, "on lane at X position", self.xPosition)
 end
 
 function Lane:Reset()
@@ -137,7 +135,7 @@ function Lane:handleGateTouch(hit, gate)
 	local cooldownKey = player.Name .. "_" .. tostring(gate)
 	
 	-- Check if this gate is on cooldown for this player
-	if self.gateCooldowns[cooldownKey] and tick() - self.gateCooldowns[cooldownKey] < 2 then
+	if self.gateCooldowns[cooldownKey] and tick() - self.gateCooldowns[cooldownKey] < Constants.GATE_COOLDOWN then
 		return -- Still on cooldown, ignore this touch
 	end
 	

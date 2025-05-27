@@ -1,21 +1,21 @@
 local Gate = require(script.Parent.Gate)
+local Constants = require(script.Parent.Constants)
 
 local Platform = {}
 Platform.__index = Platform
 
-local PLATFORM_DIM = 30
-local PLATFORM_SIZE = Vector3.new(PLATFORM_DIM, 1, PLATFORM_DIM)
-local PLATFORM_HEIGHT = 50
-local PLATFORM_FALL = 50
+local PLATFORM_SIZE = Vector3.new(Constants.PLATFORM_DIM, 1, Constants.PLATFORM_DIM)
 
-function Platform.new(zPos, divided, platformNumber)
+function Platform.new(zPos, divided, platformNumber, xPos)
 	local self = setmetatable({}, Platform)
+	
+	local xPosition = xPos or 0
 	
 	-- Create main platform part
 	self.Part = Instance.new("Part")
 	self.Part.Size = PLATFORM_SIZE
 	self.Part.Anchored = false
-	self.Part.Position = Vector3.new(0, PLATFORM_HEIGHT + PLATFORM_FALL, zPos)
+	self.Part.Position = Vector3.new(xPosition, Constants.PLATFORM_HEIGHT + Constants.PLATFORM_FALL, zPos)
 	self.Part.Name = "SkyPlatform"
 	self.Part.TopSurface = Enum.SurfaceType.Smooth
 	self.Part.BottomSurface = Enum.SurfaceType.Smooth
@@ -23,7 +23,7 @@ function Platform.new(zPos, divided, platformNumber)
 
 	-- Create dividing wall
 	self.Wall = Instance.new("Part")
-	self.Wall.Size = Vector3.new(1, 9, PLATFORM_DIM)
+	self.Wall.Size = Vector3.new(1, 9, Constants.PLATFORM_DIM)
 	self.Wall.Name = "DividingWall"
 	self.Wall.TopSurface = Enum.SurfaceType.Smooth
 	self.Wall.BottomSurface = Enum.SurfaceType.Smooth
@@ -48,8 +48,8 @@ function Platform.new(zPos, divided, platformNumber)
 		self.Wall.CanCollide = false
 	end
 
-	self.GateLeft = Gate.new(Vector3.new(-7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos))
-	self.GateRight = Gate.new(Vector3.new(7.5, PLATFORM_HEIGHT + PLATFORM_FALL + 0.5, zPos))
+	self.GateLeft = Gate.new(Vector3.new(xPosition - 7.5, Constants.PLATFORM_HEIGHT + Constants.PLATFORM_FALL + 0.5, zPos))
+	self.GateRight = Gate.new(Vector3.new(xPosition + 7.5, Constants.PLATFORM_HEIGHT + Constants.PLATFORM_FALL + 0.5, zPos))
 	
 	self.GateLeft:SetParent(self.Part)
 	self.GateRight:SetParent(self.Part)
@@ -76,7 +76,7 @@ function Platform.new(zPos, divided, platformNumber)
 	local alignPos = Instance.new("AlignPosition")
 	alignPos.Mode = Enum.PositionAlignmentMode.OneAttachment
 	alignPos.Attachment0 = att
-	alignPos.Position = Vector3.new(0, PLATFORM_HEIGHT, zPos)
+	alignPos.Position = Vector3.new(xPosition, Constants.PLATFORM_HEIGHT, zPos)
 	alignPos.Responsiveness = 50
 	alignPos.MaxForce = 100000
 	alignPos.RigidityEnabled = true

@@ -1,9 +1,14 @@
+print("=== MULTIPLY OR DIE SERVER STARTING ===")
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Terrain = workspace.Terrain
 
+print("Services loaded successfully")
+
 local Lane = require(ReplicatedStorage.Shared.Lane)
+local Constants = require(ReplicatedStorage.Shared.Constants)
 
 -- Remove the default baseplate if it exists
 local baseplate = workspace:FindFirstChild("Baseplate")
@@ -74,8 +79,7 @@ local function updatePlayerScore(player, score)
 	updatePlayerLabelEvent:FireAllClients(player, labelText)
 	
 	-- Scale player based on score.
-	local MAX_PLAYER_SIZE = 10.0
-	local sizeMultiplier = math.min(MAX_PLAYER_SIZE, math.max(1, 1 + (score / 200)))
+	local sizeMultiplier = math.min(Constants.MAX_PLAYER_SIZE, math.max(1, 1 + (score / Constants.SCORE_TO_SIZE_RATIO)))
 	
 	-- Apply scaling to player character if it exists
 	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
@@ -108,23 +112,56 @@ local function onGateTouch(player, gate)
 	updatePlayerScore(player, newScore)
 end
 
--- Create the main lane
-mainLane = Lane.new(onGateTouch, updatePlayerScore)
+-- Lane management system
+local lanes = {}  -- Array of all lanes
+local playerLanes = {}  -- Maps player to their lane
+local LANE_SPACING = Constants.PLATFORM_DIM * Constants.LANE_SPACING_MULTIPLIER
 
--- Track which players are assigned to which lanes
-local playerLanes = {}
+-- Function to create a new lane at a specific position
+local function createLane(laneIndex)
+	local xPosition = (laneIndex - 1) * LANE_SPACING  -- 0-based positioning with spacing
+	local lane = Lane.new(xPosition, onGateTouch, updatePlayerScore)
+	lane.laneIndex = laneIndex
+	return lane
+end
 
 -- Function to get or create a lane for a player
 local function getLaneForPlayer(player)
-	-- For now, just return the main lane for all players
-	-- In the future, this could create separate lanes per player
-	return mainLane
+	-- Check if player already has a lane
+	if playerLanes[player] then
+		return playerLanes[player]
+	end
+	
+	-- Find the next unused lane
+	for i = 1, Constants.MAX_LANES do
+		if not lanes[i] then
+			-- Create new lane
+			lanes[i] = createLane(i)
+			playerLanes[player] = lanes[i]
+			print("Created new lane", i, "at X position", lanes[i].xPosition, "for player", player.Name)
+			return lanes[i]
+		end
+	end
+	
+	-- If all lanes are in use, kick the player
+	print("SERVER FULL: All", Constants.MAX_LANES, "lanes in use, kicking player", player.Name)
+	player:Kick("Server is full! All " .. Constants.MAX_LANES .. " lanes are occupied. Please try again later.")
+	return nil
 end
 
 -- Function to handle player spawning/respawning
 local function handlePlayerSpawn(player, character)
 	local lane = getLaneForPlayer(player)
-	playerLanes[player] = lane
+	
+	-- If no lane available (server full), player was kicked
+	if not lane then
+		return
+	end
+	
+	-- Start the lane if it's not already running
+	if not lane.isRunning then
+		lane:Start()
+	end
 	
 	-- Reset the lane and spawn the player
 	lane:Reset()
@@ -153,7 +190,7 @@ RunService.Heartbeat:Connect(function()
 			
 			if humanoid and rootPart and humanoid.Health > 0 then
 				local position = rootPart.Position
-				if position.Y < 10 then
+				if position.Y < Constants.GRASS_Y_THRESHOLD then
 					handlePlayerFell(player)
 				end
 			end
@@ -163,19 +200,37 @@ end)
 
 -- When a player joins, set up their character handling
 Players.PlayerAdded:Connect(function(player)
-	-- Start the main lane if it's not running
-	if not mainLane.isRunning then
-		mainLane:Start()
-	end
+	print("=== PLAYER JOINED:", player.Name, "===")
 	
 	-- Handle character spawning (initial and respawns)
 	player.CharacterAdded:Connect(function(character)
+		print("Character spawned for", player.Name)
 		handlePlayerSpawn(player, character)
 	end)
 end)
 
+print("=== SERVER SETUP COMPLETE ===")
+print("Waiting for players to join...")
+
 -- Clean up player scores and lane assignments when they leave
 Players.PlayerRemoving:Connect(function(player)
 	playerScores[player] = nil
+	
+	-- Stop and clean up the player's lane
+	local playerLane = playerLanes[player]
+	if playerLane then
+		playerLane:Stop()
+		
+		-- Remove lane from lanes array
+		for i, lane in pairs(lanes) do
+			if lane == playerLane then
+				lanes[i] = nil
+				print("Stopped and removed lane", i, "for departing player", player.Name)
+				break
+			end
+		end
+	end
+	
 	playerLanes[player] = nil
+	print("Player", player.Name, "left - cleaned up their data and lane")
 end)
