@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Terrain = workspace.Terrain
 
-local Platform = require(ReplicatedStorage.Shared.Platform)
+local Lane = require(ReplicatedStorage.Shared.Lane)
 
 -- Remove the default baseplate if it exists
 local baseplate = workspace:FindFirstChild("Baseplate")
@@ -67,10 +67,8 @@ local PLATFORM_HEIGHT = 50
 local PLATFORM_FALL = 50
 local MAX_PLAYER_SIZE = 10.0
 
-local platformCount = 0
 local playerScores = {}  -- Track player scores
-local activePlatforms = {}  -- Track active platforms for collision detection
-local gateCooldowns = {}  -- Track gate cooldowns per player
+local mainLane
 
 -- Function to update a player's label with their score
 local function updatePlayerScore(player, score)
@@ -100,28 +98,11 @@ local function updatePlayerScore(player, score)
 	print("Updated", player.Name, "score to", score)
 end
 
--- Function to handle gate collision with cooldown
-local function onGateTouch(hit, gate)
-	local humanoid = hit.Parent:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
+-- Function to handle gate collision
+local function onGateTouch(player, gate)
+	if not playerScores[player] then
 		return
 	end
-	
-	local player = Players:GetPlayerFromCharacter(hit.Parent)
-	if not player or not playerScores[player] then
-		return
-	end
-	
-	-- Create cooldown key for this player and gate combination
-	local cooldownKey = player.Name .. "_" .. tostring(gate)
-	
-	-- Check if this gate is on cooldown for this player
-	if gateCooldowns[cooldownKey] and tick() - gateCooldowns[cooldownKey] < 2 then
-		return -- Still on cooldown, ignore this touch
-	end
-	
-	-- Set cooldown for this player and gate
-	gateCooldowns[cooldownKey] = tick()
 	
 	-- Apply the math operation
 	local currentScore = playerScores[player]
@@ -129,57 +110,14 @@ local function onGateTouch(hit, gate)
 	
 	print(player.Name, "passed through gate:", gate.Text, "Score:", currentScore, "->", newScore)
 	updatePlayerScore(player, newScore)
-	
-	-- Hide the gate after use
-	gate:Hide()
 end
 
--- Function to set up gate collision detection
-local function setupGateCollision(platform)
-	if platform.GateLeft and platform.GateLeft.Plane then
-		platform.GateLeft.Plane.Touched:Connect(function(hit)
-			onGateTouch(hit, platform.GateLeft)
-		end)
-	end
-	
-	if platform.GateRight and platform.GateRight.Plane then
-		platform.GateRight.Plane.Touched:Connect(function(hit)
-			onGateTouch(hit, platform.GateRight)
-		end)
-	end
-end
+-- Create the main lane
+mainLane = Lane.new(onGateTouch, updatePlayerScore)
 
--- Spawner loop
-task.spawn(function()
-	while true do
-		local platform = Platform.new(platformCount * PLATFORM_DIM, platformCount % 2 == 0, platformCount)
-		
-		-- Show gates on every platform (not just every 3rd)
-		platform:ShowGates()
-		
-		-- Set up collision detection for the gates
-		setupGateCollision(platform)
-		
-		-- Store platform reference
-		activePlatforms[#activePlatforms + 1] = platform
-		
-		platformCount += 1
-		task.wait(2)
-	end
-end)
-
--- When a player spawns, drop them onto platform and initialize their score
+-- When a player joins, restart the lane with that player
 Players.PlayerAdded:Connect(function(player)
-	
-	player.CharacterAdded:Connect(function(character)        
-		updatePlayerScore(player, 10)
-        
-        local root = character:WaitForChild("HumanoidRootPart")
-		-- Defer to next frame to avoid race condition with default spawner
-        task.defer(function()
-            root.CFrame = CFrame.new(0, PLATFORM_HEIGHT + PLATFORM_FALL * 2, -PLATFORM_DIM / 4) * CFrame.Angles(0, math.pi, 0)
-        end)
-	end)
+	mainLane:RestartWithPlayer(player)
 end)
 
 -- Clean up player scores when they leave
