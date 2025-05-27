@@ -57,9 +57,15 @@ local updatePlayerLabelEvent = Instance.new("RemoteEvent")
 updatePlayerLabelEvent.Name = "UpdatePlayerLabel"
 updatePlayerLabelEvent.Parent = ReplicatedStorage
 
+-- Create RemoteEvent for updating camera distance
+local updateCameraEvent = Instance.new("RemoteEvent")
+updateCameraEvent.Name = "UpdateCameraDistance"
+updateCameraEvent.Parent = ReplicatedStorage
+
 local PLATFORM_DIM = 30
 local PLATFORM_HEIGHT = 50
 local PLATFORM_FALL = 50
+local MAX_PLAYER_SIZE = 10.0
 
 local platformCount = 0
 local playerScores = {}  -- Track player scores
@@ -73,7 +79,7 @@ local function updatePlayerScore(player, score)
 	updatePlayerLabelEvent:FireAllClients(player, labelText)
 	
 	-- Scale player based on score (200 score = 2x size, minimum 1x size)
-	local sizeMultiplier = math.min(4.0, math.max(1, 1 + (score / 200)))
+	local sizeMultiplier = math.min(MAX_PLAYER_SIZE, math.max(1, 1 + (score / 200)))
 	
 	-- Apply scaling to player character if it exists
 	if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
@@ -87,6 +93,9 @@ local function updatePlayerScore(player, score)
 		
 		print("Scaled", player.Name, "to", sizeMultiplier .. "x size (score:", score .. ")")
 	end
+	
+	-- Send camera distance update to the specific player
+	updateCameraEvent:FireClient(player, sizeMultiplier)
 	
 	print("Updated", player.Name, "score to", score)
 end

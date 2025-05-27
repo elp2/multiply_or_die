@@ -78,3 +78,48 @@ Players.PlayerRemoving:Connect(function(player)
 		print("Cleaned up client-side PlayerLabel for", player.Name)
 	end
 end)
+
+-- Camera distance adjustment based on character size
+local Camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+
+local function adjustCameraDistance(sizeMultiplier)
+	if Camera.CameraType ~= Enum.CameraType.Custom then
+		return -- Only adjust for default camera mode
+	end
+	
+	-- Calculate camera distance based on size (1/2 of the scaling factor)
+	local cameraDistance = (sizeMultiplier / 2) * 8 + 12 -- Base distance + scaling
+	
+	-- Apply camera distance by modifying the CameraMinZoomDistance and CameraMaxZoomDistance
+	if localPlayer.Character and localPlayer.Character:FindFirstChild("Humanoid") then
+		local humanoid = localPlayer.Character.Humanoid
+		humanoid.CameraOffset = Vector3.new(0, 2 * sizeMultiplier, 0)
+	end
+	
+	-- Adjust the camera's zoom limits
+	localPlayer.CameraMinZoomDistance = cameraDistance
+	localPlayer.CameraMaxZoomDistance = math.max(cameraDistance, 25)
+	
+	print("Adjusted camera distance for size", sizeMultiplier, "to", cameraDistance)
+end
+
+-- Create RemoteEvent for camera distance updates
+local updateCameraEvent
+repeat
+	updateCameraEvent = ReplicatedStorage:FindFirstChild("UpdateCameraDistance")
+	if not updateCameraEvent then
+		task.wait(0.1)
+	end
+until updateCameraEvent
+
+-- Handle camera distance updates from server
+updateCameraEvent.OnClientEvent:Connect(function(sizeMultiplier)
+	adjustCameraDistance(sizeMultiplier)
+end)
+
+-- Set initial camera distance when character spawns
+localPlayer.CharacterAdded:Connect(function(character)
+	task.wait(0.5) -- Wait for character to be ready
+	adjustCameraDistance(1.0) -- Start with default size
+end)
