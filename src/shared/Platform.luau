@@ -71,18 +71,31 @@ function Platform.new(zPos, divided, platformNumber)
 
 	-- Set up physics
 	local att = Instance.new("Attachment", self.Part)
-	local align = Instance.new("AlignPosition")
-	align.Mode = Enum.PositionAlignmentMode.OneAttachment
-	align.Attachment0 = att
-	align.Position = Vector3.new(0, PLATFORM_HEIGHT, zPos)
-	align.Responsiveness = 50
-	align.MaxForce = 100000
-	align.RigidityEnabled = true
-	align.Parent = self.Part
+	
+	-- Position constraint
+	local alignPos = Instance.new("AlignPosition")
+	alignPos.Mode = Enum.PositionAlignmentMode.OneAttachment
+	alignPos.Attachment0 = att
+	alignPos.Position = Vector3.new(0, PLATFORM_HEIGHT, zPos)
+	alignPos.Responsiveness = 50
+	alignPos.MaxForce = 100000
+	alignPos.RigidityEnabled = true
+	alignPos.Parent = self.Part
+	
+	-- Orientation constraint to prevent spinning
+	local alignOrient = Instance.new("AlignOrientation")
+	alignOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	alignOrient.Attachment0 = att
+	alignOrient.CFrame = CFrame.new() -- Keep default orientation (no rotation)
+	alignOrient.Responsiveness = 50
+	alignOrient.MaxTorque = 100000
+	alignOrient.RigidityEnabled = true
+	alignOrient.Parent = self.Part
 
 	-- Store references for cleanup
 	self.Attachment = att
-	self.AlignPosition = align
+	self.AlignPosition = alignPos
+	self.AlignOrientation = alignOrient
 	
 	-- Start lifecycle
 	self:StartLifecycle()
@@ -107,6 +120,9 @@ function Platform:StartLifecycle()
 			self.Part.Anchored = true
 			if self.AlignPosition then
 				self.AlignPosition:Destroy()
+			end
+			if self.AlignOrientation then
+				self.AlignOrientation:Destroy()
 			end
 			if self.Attachment then
 				self.Attachment:Destroy()
