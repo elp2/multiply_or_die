@@ -21,6 +21,12 @@ function Platform.new(zPos, divided, platformNumber, xPos)
 	self.Part.BottomSurface = Enum.SurfaceType.Smooth
 	self.Part.Parent = workspace
 
+	-- Create sound effect for when platform falls into place
+	self.LandingSound = Instance.new("Sound")
+	self.LandingSound.SoundId = "rbxassetid://9125681881"
+	self.LandingSound.Volume = 0.5
+	self.LandingSound.Parent = self.Part
+
 	-- Create dividing wall
 	self.Wall = Instance.new("Part")
 	self.Wall.Size = Vector3.new(1, 9, Constants.PLATFORM_DIM)
@@ -114,6 +120,35 @@ function Platform:HideGates()
 end
 
 function Platform:StartLifecycle()
+	-- Monitor platform position to detect when it reaches target
+	local targetY = Constants.PLATFORM_HEIGHT
+	local hasPlayedLandingSound = false
+	
+	-- Check position every frame until platform reaches target
+	local positionConnection
+	positionConnection = game:GetService("RunService").Heartbeat:Connect(function()
+		if self.Part and self.Part.Parent then
+			local currentY = self.Part.Position.Y
+			-- Check if platform has reached close to target position (within 0.5 studs)
+			if not hasPlayedLandingSound and math.abs(currentY - targetY) <= 0.5 then
+				hasPlayedLandingSound = true
+				-- Play landing sound when platform falls into place
+				if self.LandingSound then
+					self.LandingSound:Play()
+				end
+				-- Disconnect the position monitoring
+				if positionConnection then
+					positionConnection:Disconnect()
+				end
+			end
+		else
+			-- Platform was destroyed, clean up connection
+			if positionConnection then
+				positionConnection:Disconnect()
+			end
+		end
+	end)
+	
 	-- Freeze in place after settling
 	task.delay(2.5, function()
 		if self.Part and self.Part.Parent then
@@ -127,6 +162,10 @@ function Platform:StartLifecycle()
 			if self.Attachment then
 				self.Attachment:Destroy()
 			end
+		end
+		-- Clean up position monitoring if still active
+		if positionConnection then
+			positionConnection:Disconnect()
 		end
 	end)
 
