@@ -15,7 +15,7 @@ Constants.SPAWN_INTERVAL = 2  -- Seconds between platform spawns
 Constants.GATE_COOLDOWN = 2   -- Seconds between gate touches for same player
 
 -- Player scaling
-Constants.MAX_PLAYER_SIZE = 10.0
+Constants.MAX_PLAYER_SIZE = 5.0
 Constants.SCORE_TO_SIZE_RATIO = 200  -- Divide score by this for size multiplier
 
 -- Grass collision
