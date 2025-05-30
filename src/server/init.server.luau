@@ -56,7 +56,7 @@ task.spawn(function()
 			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 				local pos = player.Character.HumanoidRootPart.Position
 				local lookahead = Constants.TERRAIN_CHUNK_SIZE / 2
-				ensureGrassAt(0, pos.Z + lookahead)
+				ensureGrassAt(pos.X, pos.Z + lookahead)
 			end
 		end
 		task.wait(1)
