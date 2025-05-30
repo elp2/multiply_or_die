@@ -30,7 +30,7 @@ Constants.TERRAIN_TOP_Y = -30
 Constants.INITIAL_PLAYER_SCORE = 10
 
 -- Leaderboard positioning
-Constants.LEADERBOARD_X = 
+Constants.LEADERBOARD_X = 0
 Constants.LEADERBOARD_Z = 100
 Constants.LEADERBOARD_BOTTOM_Y = 70
 

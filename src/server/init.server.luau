@@ -83,8 +83,15 @@ local respawnPlayerEvent = Instance.new("RemoteEvent")
 respawnPlayerEvent.Name = "RespawnPlayer"
 respawnPlayerEvent.Parent = ReplicatedStorage
 
+-- Create RemoteEvent for uploading high scores
+local uploadScoreEvent = Instance.new("RemoteEvent")
+uploadScoreEvent.Name = "UploadScore"
+uploadScoreEvent.Parent = ReplicatedStorage
+
 local playerScores = {}  -- Track player scores
 local playerGameOverScreens = {}  -- Track active game over screens
+local highScores = {}  -- Track all high scores for leaderboard
+local leaderboard = nil  -- Will be initialized after setup
 local mainLane
 
 -- Function to update a player's label with their score
@@ -196,6 +203,33 @@ respawnPlayerEvent.OnServerEvent:Connect(function(player)
 	player:LoadCharacter()
 end)
 
+-- Handle high score uploads from clients
+uploadScoreEvent.OnServerEvent:Connect(function(player)
+	-- Get the authoritative score from server records
+	local actualScore = playerScores[player] or 0
+	
+	print("High score upload from", player.Name, "with server score", actualScore)
+	
+	-- Only upload if the score is greater than 0
+	if actualScore > 0 then
+		-- Add the score to high scores list
+		table.insert(highScores, {player.Name, actualScore})
+		
+		-- Update the leaderboard with new scores
+		leaderboard:UpdateScores(highScores)
+		
+		print("Added", player.Name, "to leaderboard with score", actualScore)
+	else
+		print("Score too low to upload:", actualScore)
+	end
+	
+	-- Clear the game over screen flag
+	playerGameOverScreens[player] = nil
+	
+	-- Respawn the player
+	player:LoadCharacter()
+end)
+
 -- Function to handle player spawning/respawning
 local function handlePlayerSpawn(player, character)
 	local lane = getLaneForPlayer(player)
@@ -248,20 +282,21 @@ end)
 print("=== SERVER SETUP COMPLETE ===")
 
 -- Initialize leaderboard with fake scores
-local leaderboard = Leaderboard.new()
+leaderboard = Leaderboard.new()
 local fakeScores = {
 	{"SuperGamer99", 2500},
 	{"MathWizard", 1875},
 	{"PlatformKing", 1650},
 	{"NumberNinja", 1420},
-	{"CalculusQueen", 1200},
-	{"AlgebraAce", 980},
-	{"GeometryGuru", 750},
-	{"ArithmeticAnnie", 500},
-	{"CountingCarl", 350},
-	{"BasicBob", 150}
+
 }
-leaderboard:UpdateScores(fakeScores)
+
+-- Add fake scores to high scores list
+for _, scoreData in ipairs(fakeScores) do
+	table.insert(highScores, scoreData)
+end
+
+leaderboard:UpdateScores(highScores)
 
 print("Waiting for players to join...")
 

@@ -39,8 +39,8 @@ function GameOver:Show()
 	
 	-- Create content frame
 	local contentFrame = Instance.new("Frame")
-	contentFrame.Size = UDim2.new(0, 400, 0, 300)
-	contentFrame.Position = UDim2.new(0.5, -200, 0.5, -150) -- Center the frame
+	contentFrame.Size = UDim2.new(0, 400, 0, 350)
+	contentFrame.Position = UDim2.new(0.5, -200, 0.5, -175)
 	contentFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 	contentFrame.BorderSizePixel = 0
 	contentFrame.Parent = mainFrame
@@ -72,10 +72,27 @@ function GameOver:Show()
 	scoreLabel.Font = Enum.Font.SourceSans
 	scoreLabel.Parent = contentFrame
 	
+	-- Create upload high score button
+	local uploadButton = Instance.new("TextButton")
+	uploadButton.Size = UDim2.new(0, 200, 0, 50)
+	uploadButton.Position = UDim2.new(0.5, -100, 0, 200)
+	uploadButton.BackgroundColor3 = Color3.new(0.8, 0.6, 0.2)
+	uploadButton.Text = "UPLOAD HIGH SCORE"
+	uploadButton.TextColor3 = Color3.new(1, 1, 1)
+	uploadButton.TextScaled = true
+	uploadButton.Font = Enum.Font.SourceSansBold
+	uploadButton.BorderSizePixel = 0
+	uploadButton.Parent = contentFrame
+	
+	-- Add rounded corners to upload button
+	local uploadButtonCorner = Instance.new("UICorner")
+	uploadButtonCorner.CornerRadius = UDim.new(0, 10)
+	uploadButtonCorner.Parent = uploadButton
+	
 	-- Create replay button
 	local replayButton = Instance.new("TextButton")
 	replayButton.Size = UDim2.new(0, 200, 0, 50)
-	replayButton.Position = UDim2.new(0.5, -100, 0, 200)
+	replayButton.Position = UDim2.new(0.5, -100, 0, 270)
 	replayButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2) -- Green color
 	replayButton.Text = "REPLAY"
 	replayButton.TextColor3 = Color3.new(1, 1, 1)
@@ -89,7 +106,16 @@ function GameOver:Show()
 	buttonCorner.CornerRadius = UDim.new(0, 10)
 	buttonCorner.Parent = replayButton
 	
-	-- Add button hover effects
+	-- Add upload button hover effects
+	uploadButton.MouseEnter:Connect(function()
+		uploadButton.BackgroundColor3 = Color3.new(0.9, 0.7, 0.3)
+	end)
+	
+	uploadButton.MouseLeave:Connect(function()
+		uploadButton.BackgroundColor3 = Color3.new(0.8, 0.6, 0.2)
+	end)
+	
+	-- Add replay button hover effects
 	replayButton.MouseEnter:Connect(function()
 		replayButton.BackgroundColor3 = Color3.new(0.3, 0.9, 0.3)
 	end)
@@ -98,12 +124,36 @@ function GameOver:Show()
 		replayButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
 	end)
 	
+	-- Handle upload button click
+	uploadButton.MouseButton1Click:Connect(function()
+		self:OnUploadClicked()
+	end)
+	
 	-- Handle replay button click
 	replayButton.MouseButton1Click:Connect(function()
 		self:OnReplayClicked()
 	end)
 	
 	print("GameOver screen shown for", self.Player.Name, "with score", self.FinalScore)
+end
+
+function GameOver:OnUploadClicked()
+	print("Upload High Score button clicked for", self.Player.Name)
+	
+	-- Send upload request to the server (server will look up actual score)
+	local uploadScoreEvent = ReplicatedStorage:FindFirstChild("UploadScore")
+	if uploadScoreEvent then
+		uploadScoreEvent:FireServer() -- Don't send score, server has the authoritative score
+	end
+	
+	-- Hide the game over screen
+	self:Hide()
+	
+	-- Fire a remote event to tell the server to respawn the player
+	local respawnPlayerEvent = ReplicatedStorage:FindFirstChild("RespawnPlayer")
+	if respawnPlayerEvent then
+		respawnPlayerEvent:FireServer()
+	end
 end
 
 function GameOver:OnReplayClicked()
