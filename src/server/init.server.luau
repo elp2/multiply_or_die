@@ -5,6 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Terrain = workspace.Terrain
 
+-- Disable automatic character loading - we'll handle respawning manually
+Players.CharacterAutoLoads = false
+
 print("Services loaded successfully")
 
 local Lane = require(ReplicatedStorage.Shared.Lane)
@@ -68,8 +71,18 @@ local updateCameraEvent = Instance.new("RemoteEvent")
 updateCameraEvent.Name = "UpdateCameraDistance"
 updateCameraEvent.Parent = ReplicatedStorage
 
+-- Create RemoteEvent for showing game over screen
+local showGameOverEvent = Instance.new("RemoteEvent")
+showGameOverEvent.Name = "ShowGameOver"
+showGameOverEvent.Parent = ReplicatedStorage
+
+-- Create RemoteEvent for respawning player
+local respawnPlayerEvent = Instance.new("RemoteEvent")
+respawnPlayerEvent.Name = "RespawnPlayer"
+respawnPlayerEvent.Parent = ReplicatedStorage
 
 local playerScores = {}  -- Track player scores
+local playerGameOverScreens = {}  -- Track active game over screens
 local mainLane
 
 -- Function to update a player's label with their score
@@ -149,6 +162,38 @@ local function getLaneForPlayer(player)
 	return nil
 end
 
+-- Function to handle player falling (grass collision)
+local function handlePlayerFell(player)
+	local lane = playerLanes[player]
+	if lane and player.Character then
+		print("Player", player.Name, "fell off, showing game over screen...")
+		
+		-- Get the player's final score
+		local finalScore = playerScores[player] or 0
+		
+		-- Show game over screen to the player
+		showGameOverEvent:FireClient(player, finalScore)
+		playerGameOverScreens[player] = true
+		
+		-- Kill the player but don't respawn yet
+		local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Health = 0
+		end
+	end
+end
+
+-- Handle respawn requests from clients
+respawnPlayerEvent.OnServerEvent:Connect(function(player)
+	print("Respawn requested for", player.Name)
+	
+	-- Clear the game over screen flag
+	playerGameOverScreens[player] = nil
+	
+	-- Respawn the player
+	player:LoadCharacter()
+end)
+
 -- Function to handle player spawning/respawning
 local function handlePlayerSpawn(player, character)
 	local lane = getLaneForPlayer(player)
@@ -166,19 +211,6 @@ local function handlePlayerSpawn(player, character)
 	-- Reset the lane and spawn the player
 	lane:Reset()
 	lane:SpawnPlayer(player, character)
-end
-
--- Function to handle player falling (grass collision)
-local function handlePlayerFell(player)
-	local lane = playerLanes[player]
-	if lane and player.Character then
-		print("Player", player.Name, "fell off, respawning...")
-		-- Kill the player to trigger respawn
-		local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			humanoid.Health = 0
-		end
-	end
 end
 
 -- Single grass collision detection for all players
@@ -202,11 +234,13 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	print("=== PLAYER JOINED:", player.Name, "===")
 	
-	-- Handle character spawning (initial and respawns)
+	-- Load their character manually since CharacterAutoLoads is disabled
+
 	player.CharacterAdded:Connect(function(character)
 		print("Character spawned for", player.Name)
 		handlePlayerSpawn(player, character)
 	end)
+	player:LoadCharacter()
 end)
 
 print("=== SERVER SETUP COMPLETE ===")
@@ -215,6 +249,7 @@ print("Waiting for players to join...")
 -- Clean up player scores and lane assignments when they leave
 Players.PlayerRemoving:Connect(function(player)
 	playerScores[player] = nil
+	playerGameOverScreens[player] = nil
 	
 	-- Stop and clean up the player's lane
 	local playerLane = playerLanes[player]

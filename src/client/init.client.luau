@@ -1,22 +1,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Require modules directly since they're in ReplicatedStorage.Shared
+local PlayerLabel = require(ReplicatedStorage.Shared.PlayerLabel)
+local GameOver = require(ReplicatedStorage.Shared.GameOver)
 
--- Wait for PlayerLabel module to be available
-local PlayerLabel
-repeat
-	local success, result = pcall(function()
-		return require(ReplicatedStorage.Shared.PlayerLabel)
-	end)
-	if success then
-		PlayerLabel = result
-		print("PlayerLabel module loaded on client")
-		break
-	end
-	task.wait(0.1)
-until PlayerLabel
-
--- Wait for RemoteEvent to be available
+-- Wait for RemoteEvents to be available (these are created by the server)
 local updatePlayerLabelEvent
 repeat
 	updatePlayerLabelEvent = ReplicatedStorage:FindFirstChild("UpdatePlayerLabel")
@@ -25,7 +14,17 @@ repeat
 	end
 until updatePlayerLabelEvent
 
+-- Wait for ShowGameOver RemoteEvent to be available
+local showGameOverEvent
+repeat
+	showGameOverEvent = ReplicatedStorage:FindFirstChild("ShowGameOver")
+	if not showGameOverEvent then
+		task.wait(0.1)
+	end
+until showGameOverEvent
+
 local playerLabels = {}
+local currentGameOverScreen = nil
 
 -- Function to create label for a player
 local function createLabelForPlayer(player)
@@ -68,6 +67,21 @@ updatePlayerLabelEvent.OnClientEvent:Connect(function(targetPlayer, newText)
 		playerLabels[targetPlayer]:SetText(newText)
 		print("Updated label for", targetPlayer.Name, "to:", newText)
 	end
+end)
+
+-- Handle game over screen display
+showGameOverEvent.OnClientEvent:Connect(function(finalScore)
+	local localPlayer = Players.LocalPlayer
+	print("Showing GameOver screen with score:", finalScore)
+	
+	-- Clean up any existing game over screen
+	if currentGameOverScreen then
+		currentGameOverScreen:Destroy()
+	end
+	
+	-- Create and show new game over screen
+	currentGameOverScreen = GameOver.new(localPlayer, finalScore)
+	currentGameOverScreen:Show()
 end)
 
 -- Clean up labels when players leave
