@@ -23,8 +23,8 @@ Constants.GRASS_Y_THRESHOLD = 10
 
 -- Terrain generation
 Constants.TERRAIN_CHUNK_SIZE = 256
-Constants.TERRAIN_BOTTOM_Y = -32
-Constants.TERRAIN_TOP_Y = -30
+Constants.TERRAIN_BOTTOM_Y = -36
+Constants.TERRAIN_TOP_Y = -32
 
 -- Initial player values
 Constants.INITIAL_PLAYER_SCORE = 10
