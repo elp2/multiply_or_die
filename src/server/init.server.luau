@@ -12,6 +12,7 @@ print("Services loaded successfully")
 
 local Lane = require(ReplicatedStorage.Shared.Lane)
 local Constants = require(ReplicatedStorage.Shared.Constants)
+local Leaderboard = require(ReplicatedStorage.Shared.Leaderboard)
 
 -- Remove the default baseplate if it exists
 local baseplate = workspace:FindFirstChild("Baseplate")
@@ -245,6 +246,23 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("=== SERVER SETUP COMPLETE ===")
+
+-- Initialize leaderboard with fake scores
+local leaderboard = Leaderboard.new()
+local fakeScores = {
+	{"SuperGamer99", 2500},
+	{"MathWizard", 1875},
+	{"PlatformKing", 1650},
+	{"NumberNinja", 1420},
+	{"CalculusQueen", 1200},
+	{"AlgebraAce", 980},
+	{"GeometryGuru", 750},
+	{"ArithmeticAnnie", 500},
+	{"CountingCarl", 350},
+	{"BasicBob", 150}
+}
+leaderboard:UpdateScores(fakeScores)
+
 print("Waiting for players to join...")
 
 -- Clean up player scores and lane assignments when they leave
