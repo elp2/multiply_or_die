@@ -4,6 +4,7 @@ Leaderboard.__index = Leaderboard
 local Constants = require(script.Parent.Constants)
 local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
+local MessagingService = game:GetService("MessagingService")
 
 -- Create the high scores ordered datastore
 local highScoresStore = DataStoreService:GetOrderedDataStore("HighScores")
@@ -11,6 +12,14 @@ local highScoresStore = DataStoreService:GetOrderedDataStore("HighScores")
 -- Check if we're in Studio with API access disabled
 local isStudio = false -- RunService:IsStudio()
 local mockScores = {} -- Fallback for Studio testing
+
+-- Cross-server messaging constants
+local LEADERBOARD_REFRESH_TOPIC = "RefreshLeaderboard"
+
+-- Global debounce tracking for all leaderboard instances
+local lastLeaderboardRefresh = 0
+local REFRESH_DEBOUNCE_TIME = 10
+local messageConnection = nil
 
 function Leaderboard.new(position)
 	local self = setmetatable({}, Leaderboard)
@@ -29,8 +38,61 @@ function Leaderboard.new(position)
 	
 	self:CreateBillboard()
 	self:LoadAndDisplayScores()
+	self:SetupCrossServerMessaging()
 	
 	return self
+end
+
+function Leaderboard:SetupCrossServerMessaging()
+	if messageConnection then
+		return
+	end
+	
+	local success, connection = pcall(function()
+		return MessagingService:SubscribeAsync(LEADERBOARD_REFRESH_TOPIC, function(message)
+			local currentTime = tick()
+			
+			if currentTime - lastLeaderboardRefresh < REFRESH_DEBOUNCE_TIME then
+                return
+            end
+
+            lastLeaderboardRefresh = currentTime            
+            self:LoadAndDisplayScores()
+		end)
+	end)
+	
+	if success then
+		messageConnection = connection
+		print("Successfully subscribed to cross-server leaderboard updates")
+	else
+		-- Fallback for Studio or if MessagingService fails
+		if isStudio then
+			print("MessagingService not available in Studio, using local-only leaderboard")
+		else
+			warn("Failed to subscribe to cross-server leaderboard updates:", connection)
+		end
+	end
+end
+
+-- Class method to notify other servers that a high score was added
+function Leaderboard.NotifyHighScoreAdded()
+	local success, error = pcall(function()
+		MessagingService:PublishAsync(LEADERBOARD_REFRESH_TOPIC, {
+			reason = "high_score_added",
+			timestamp = tick()
+		})
+	end)
+	
+	if success then
+		print("Successfully notified other servers that a high score was added")
+	else
+		-- Fallback for Studio or if MessagingService fails
+		if isStudio then
+			print("MessagingService not available in Studio, high score notification skipped")
+		else
+			warn("Failed to notify other servers of high score:", error)
+		end
+	end
 end
 
 function Leaderboard:CreateBillboard()
@@ -178,6 +240,10 @@ function Leaderboard:Destroy()
 	if self.Billboard then
 		self.Billboard:Destroy()
 	end
+	
+	-- Note: We don't disconnect the message connection here since it's shared
+	-- across all leaderboard instances. In a real implementation, you might
+	-- want to implement reference counting or use a singleton pattern.
 end
 
 function Leaderboard:LoadAndDisplayScores()
@@ -248,8 +314,10 @@ function Leaderboard:AddScore(playerName, score)
 	end)
 	
 	if success then
-		print("Successfully saved new best score for", playerName, ":", score)
-		-- Reload and display updated scores
+		print("Successfully saved new best score for", playerName, ":", score)		
+		Leaderboard.NotifyHighScoreAdded()
+		
+		-- Reload and display updated scores locally
 		self:LoadAndDisplayScores()
 		return true -- Indicate score was uploaded
 	else
@@ -259,6 +327,10 @@ function Leaderboard:AddScore(playerName, score)
 			if score > currentMockScore then
 				print("Using Studio fallback - updating mock score")
 				mockScores[playerName] = score
+				
+				-- Simulate cross-server notification in Studio
+				print("Studio: Simulating high score notification")
+				
 				self:LoadAndDisplayScores()
 				return true
 			else
