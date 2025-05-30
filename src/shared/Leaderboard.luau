@@ -2,6 +2,15 @@ local Leaderboard = {}
 Leaderboard.__index = Leaderboard
 
 local Constants = require(script.Parent.Constants)
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+
+-- Create the high scores ordered datastore
+local highScoresStore = DataStoreService:GetOrderedDataStore("HighScores")
+
+-- Check if we're in Studio with API access disabled
+local isStudio = false -- RunService:IsStudio()
+local mockScores = {} -- Fallback for Studio testing
 
 function Leaderboard.new(position)
 	local self = setmetatable({}, Leaderboard)
@@ -19,6 +28,7 @@ function Leaderboard.new(position)
 	self.ScoreEntries = {}
 	
 	self:CreateBillboard()
+	self:LoadAndDisplayScores()
 	
 	return self
 end
@@ -170,4 +180,115 @@ function Leaderboard:Destroy()
 	end
 end
 
-return Leaderboard 
+function Leaderboard:LoadAndDisplayScores()
+	print("Loading high scores from OrderedDataStore...")
+	
+	local success, pages = pcall(function()
+		return highScoresStore:GetSortedAsync(false, 10)
+	end)
+	
+	if success and pages then
+		local scores = {}
+		local data = pages:GetCurrentPage()
+		
+		for _, entry in pairs(data) do
+			table.insert(scores, {entry.key, entry.value})
+		end
+		
+		self:UpdateScores(scores)
+		print("Loaded and displayed", #scores, "scores from OrderedDataStore")
+	else
+		print("OrderedDataStore load failed or empty")
+		
+		-- Fallback for Studio testing - use mock data
+		if isStudio then
+			print("Using Studio fallback - loading mock scores")
+			local scores = {}
+			for playerName, score in pairs(mockScores) do
+				table.insert(scores, {playerName, score})
+			end
+			
+			-- Sort mock scores in descending order
+			table.sort(scores, function(a, b)
+				return a[2] > b[2]
+			end)
+			
+			self:UpdateScores(scores)
+			print("Loaded", #scores, "mock scores for Studio testing")
+		else
+			self:UpdateScores({}) -- Show empty leaderboard
+		end
+	end
+end
+
+function Leaderboard:AddScore(playerName, score)
+	print("Checking if score should be uploaded for", playerName, ":", score)
+	
+	-- First check if player already has a better score
+	local currentScore = 0
+	local checkSuccess, checkResult = pcall(function()
+		return highScoresStore:GetAsync(playerName)
+	end)
+	
+	if checkSuccess and checkResult then
+		currentScore = checkResult
+		print("Player", playerName, "current best score:", currentScore)
+	end
+	
+	-- Only upload if new score is better than current score
+	if score <= currentScore then
+		print("Score", score, "not better than current best", currentScore, "- not uploading")
+		return false -- Indicate score was not uploaded
+	end
+	
+	print("New score", score, "is better than current", currentScore, "- uploading...")
+	
+	local success, error = pcall(function()
+		highScoresStore:SetAsync(playerName, score)
+	end)
+	
+	if success then
+		print("Successfully saved new best score for", playerName, ":", score)
+		-- Reload and display updated scores
+		self:LoadAndDisplayScores()
+		return true -- Indicate score was uploaded
+	else
+		-- Fallback for Studio testing - use mock data
+		if isStudio then
+			local currentMockScore = mockScores[playerName] or 0
+			if score > currentMockScore then
+				print("Using Studio fallback - updating mock score")
+				mockScores[playerName] = score
+				self:LoadAndDisplayScores()
+				return true
+			else
+				print("Mock score not better than current:", currentMockScore)
+				return false
+			end
+		else
+			print("Failed to save score to OrderedDataStore:", error)
+			return false
+		end
+	end
+end
+
+function Leaderboard:GetTopScores(count)
+	count = count or 10
+	local topScores = {}
+	
+	local success, pages = pcall(function()
+		return highScoresStore:GetSortedAsync(false, count)
+	end)
+	
+	if success and pages then
+		local data = pages:GetCurrentPage()
+		
+		for _, entry in pairs(data) do
+			table.insert(topScores, {entry.key, entry.value})
+		end
+	end
+	
+	return topScores
+end
+
+return Leaderboard

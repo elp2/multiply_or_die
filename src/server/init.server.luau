@@ -90,7 +90,6 @@ uploadScoreEvent.Parent = ReplicatedStorage
 
 local playerScores = {}  -- Track player scores
 local playerGameOverScreens = {}  -- Track active game over screens
-local highScores = {}  -- Track all high scores for leaderboard
 local leaderboard = nil  -- Will be initialized after setup
 local mainLane
 
@@ -210,23 +209,22 @@ uploadScoreEvent.OnServerEvent:Connect(function(player)
 	
 	print("High score upload from", player.Name, "with server score", actualScore)
 	
-	-- Only upload if the score is greater than 0
+	-- Only attempt upload if the score is greater than 0
 	if actualScore > 0 then
-		-- Add the score to high scores list
-		table.insert(highScores, {player.Name, actualScore})
+		-- Try to add the score through the leaderboard (which checks for better existing scores)
+		local wasUploaded = leaderboard:AddScore(player.Name, actualScore)
 		
-		-- Update the leaderboard with new scores
-		leaderboard:UpdateScores(highScores)
-		
-		print("Added", player.Name, "to leaderboard with score", actualScore)
+		if wasUploaded then
+			print("Successfully uploaded new high score for", player.Name, ":", actualScore)
+		else
+			print("Score not uploaded for", player.Name, "- not better than existing score")
+		end
 	else
 		print("Score too low to upload:", actualScore)
 	end
 	
-	-- Clear the game over screen flag
+	-- Clear the game over screen flag and respawn regardless of upload result
 	playerGameOverScreens[player] = nil
-	
-	-- Respawn the player
 	player:LoadCharacter()
 end)
 
@@ -279,24 +277,7 @@ Players.PlayerAdded:Connect(function(player)
 	player:LoadCharacter()
 end)
 
-print("=== SERVER SETUP COMPLETE ===")
-
--- Initialize leaderboard with fake scores
 leaderboard = Leaderboard.new()
-local fakeScores = {
-	{"SuperGamer99", 2500},
-	{"MathWizard", 1875},
-	{"PlatformKing", 1650},
-	{"NumberNinja", 1420},
-
-}
-
--- Add fake scores to high scores list
-for _, scoreData in ipairs(fakeScores) do
-	table.insert(highScores, scoreData)
-end
-
-leaderboard:UpdateScores(highScores)
 
 print("Waiting for players to join...")
 
