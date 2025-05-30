@@ -19,34 +19,34 @@ if baseplate then
 	baseplate:Destroy()
 end
 
--- Create infinite grass terrain
-local function createGrassTerrain(centerX, centerZ)
-	local region = Region3.new(
-		Vector3.new(centerX - 256, -50, centerZ - 256),
-		Vector3.new(centerX + 256, -30, centerZ + 256)
-	)
-	local material = Enum.Material.Grass
-	local shape = Enum.PartType.Block
-	
-	Terrain:FillRegion(region, 4, material)
-end
-
--- Create initial grass terrain area
-createGrassTerrain(0, 0)
-
 -- Track player positions to expand terrain as needed
 local expandedAreas = {}
-local function ensureTerrainAtPosition(x, z)
-	-- Round to terrain chunk boundaries (512x512 chunks)
-	local chunkX = math.floor(x / 512) * 512
-	local chunkZ = math.floor(z / 512) * 512
+
+local function ensureGrassAt(posX, posY)
+	local halfSize = Constants.TERRAIN_CHUNK_SIZE / 2
+
+	chunkX = math.floor((posX + halfSize) / Constants.TERRAIN_CHUNK_SIZE)
+	chunkZ = math.floor((posY + halfSize) / Constants.TERRAIN_CHUNK_SIZE)
+
 	local chunkKey = chunkX .. "," .. chunkZ
+	if expandedAreas[chunkKey] then
+		return
+	end	
+	expandedAreas[chunkKey] = true
 	
-	if not expandedAreas[chunkKey] then
-		expandedAreas[chunkKey] = true
-		createGrassTerrain(chunkX, chunkZ)
-	end
+	-- Create the terrain
+	centerX = chunkX * Constants.TERRAIN_CHUNK_SIZE
+	centerZ = chunkZ * Constants.TERRAIN_CHUNK_SIZE
+
+	local region = Region3.new(
+		Vector3.new(centerX - halfSize, Constants.TERRAIN_BOTTOM_Y, centerZ - halfSize),
+		Vector3.new(centerX + halfSize, Constants.TERRAIN_TOP_Y, centerZ + halfSize)
+	)
+	Terrain:FillRegion(region, 4, Enum.Material.Grass)
 end
+
+-- Pre-generate initial terrain chunks along the Z-axis
+ensureGrassAt(0, 0)
 
 -- Monitor all players and expand terrain as they move
 task.spawn(function()
@@ -54,10 +54,11 @@ task.spawn(function()
 		for _, player in ipairs(Players:GetPlayers()) do
 			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 				local pos = player.Character.HumanoidRootPart.Position
-				ensureTerrainAtPosition(pos.X, pos.Z)
+				local lookahead = Constants.TERRAIN_CHUNK_SIZE / 2
+				ensureGrassAt(0, pos.Z + lookahead)
 			end
 		end
-		task.wait(1) -- Check every second
+		task.wait(1)
 	end
 end)
 
